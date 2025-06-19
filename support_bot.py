@@ -2,50 +2,52 @@ import discord
 import openai
 import os
 from dotenv import load_dotenv
+from discord.ext import commands
 
 load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
+# Intents
 intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-client = discord.Client(intents=intents)
 
-openai.api_key = openai.api_key = os.getenv("OPENAI_API_KEY")
+# Create the bot instance
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 SYSTEM_PROMPT = """
-You are a helpful, friendly support assistant for MyProduct. You assist users with common issues, setup, and troubleshooting. Use only the provided knowledge. You understand discord. 
+You are a helpful, friendly support assistant for Neuron. You assist users with common issues, setup, and troubleshooting. Use mainly the provided knowledge. You understand discord.
 
-learn about these websites - you are a Neuron support bot, one of neurons product is 4dsky
+Learn about these websites — you are a Neuron support bot. One of Neuron's products is 4DSKY:
 https://www.neuron.world/
 https://docs.neuron.world/
 https://4dsky.com/
 https://docs.4dsky.com/
-
-
 """
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f'🤖 Bot connected as {client.user}')
+    await bot.tree.sync()
+    print(f"✅ Bot connected as {bot.user}")
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+@bot.tree.command(name="ask", description="Ask the Neuron support bot a question.")
+async def ask(interaction: discord.Interaction, question: str):
+    await interaction.response.defer(thinking=True)
 
-    user_input = message.content
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # or gpt-3.5-turbo
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.5,
+            max_tokens=500
+        )
+        answer = response.choices[0].message["content"]
+        await interaction.followup.send(answer)
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",  # use gpt-3.5-turbo if needed
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_input}
-        ]
-    )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Something went wrong: {e}")
 
-    reply = response.choices[0].message.content
-    await message.channel.send(reply)
-
-client.run(DISCORD_TOKEN)
+bot.run(DISCORD_TOKEN)
