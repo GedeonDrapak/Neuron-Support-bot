@@ -11,6 +11,7 @@ openai.api_key = OPENAI_API_KEY
 
 # Intents
 intents = discord.Intents.default()
+intents.message_content = True
 
 # Create the bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -57,7 +58,7 @@ async def ask(interaction: discord.Interaction, question: str):
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # or gpt-3.5-turbo
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": question}
@@ -70,5 +71,29 @@ async def ask(interaction: discord.Interaction, question: str):
 
     except Exception as e:
         await interaction.followup.send(f"❌ Something went wrong: {e}")
+
+@bot.tree.command(name="summarize", description="Summarize recent messages in this channel.")
+async def summarize(interaction: discord.Interaction, limit: int = 20):
+    """Fetches the last `limit` messages and summarizes them."""
+    await interaction.response.defer(thinking=True)
+    # Fetch history
+    history = await interaction.channel.history(limit=limit+1).flatten()
+    msgs = [m for m in reversed(history) if m.id != interaction.id][:limit]
+    transcript = "\n".join(f"{m.author.display_name}: {m.content}" for m in msgs)
+
+    try:
+        summary_resp = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Here is the recent chat transcript (last {limit} messages):\n{transcript}\n\nPlease provide a concise summary."}
+            ],
+            temperature=0.5,
+            max_tokens=300
+        )
+        summary = summary_resp.choices[0].message["content"]
+        await interaction.followup.send(f"📝 **Summary:** {summary}")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Failed to generate summary: {e}")
 
 bot.run(DISCORD_TOKEN)
