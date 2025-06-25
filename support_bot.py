@@ -76,10 +76,11 @@ async def ask(interaction: discord.Interaction, question: str):
 async def summarize(interaction: discord.Interaction, limit: int = 20):
     """Fetches the last `limit` messages and summarizes them."""
     await interaction.response.defer(thinking=True)
-    # Fetch history
-    history = await interaction.channel.history(limit=limit+1).flatten()
-    msgs = [m for m in reversed(history) if m.id != interaction.id][:limit]
-    transcript = "\n".join(f"{m.author.display_name}: {m.content}" for m in msgs)
+    # Fetch history as a list
+    history = [msg async for msg in interaction.channel.history(limit=limit+1)]
+    # Remove the command invocation message
+    messages = [m for m in history[::-1] if m.id != interaction.id][:limit]
+    transcript = "\n".join(f"{m.author.display_name}: {m.content}" for m in messages)
 
     try:
         summary_resp = openai.ChatCompletion.create(
