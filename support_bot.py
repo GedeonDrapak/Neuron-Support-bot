@@ -87,7 +87,7 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
             model="gpt-4",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Here is the recent chat transcript (last {limit} messages):\n{transcript}\n\nPlease provide a concise summary."}
+                {"role": "user", "content": f"Here is the recent chat transcript (last {limit} messages):\n{transcript}\n\nPlease provide a summary. Also provide ideas for sollutions based on your base knowledge. "}
             ],
             temperature=0.5,
             max_tokens=300
